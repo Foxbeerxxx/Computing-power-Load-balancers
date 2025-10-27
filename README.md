@@ -1,32 +1,57 @@
-# Домашнее задание к занятию "`Название занятия`" - `Фамилия и имя студента`
+# Домашнее задание к занятию "`Вычислительные мощности. Балансировщики нагрузки`" - `Татаринцев Алексей`
 
-
-### Инструкция по выполнению домашнего задания
-
-   1. Сделайте `fork` данного репозитория к себе в Github и переименуйте его по названию или номеру занятия, например, https://github.com/имя-вашего-репозитория/git-hw или  https://github.com/имя-вашего-репозитория/7-1-ansible-hw).
-   2. Выполните клонирование данного репозитория к себе на ПК с помощью команды `git clone`.
-   3. Выполните домашнее задание и заполните у себя локально этот файл README.md:
-      - впишите вверху название занятия и вашу фамилию и имя
-      - в каждом задании добавьте решение в требуемом виде (текст/код/скриншоты/ссылка)
-      - для корректного добавления скриншотов воспользуйтесь [инструкцией "Как вставить скриншот в шаблон с решением](https://github.com/netology-code/sys-pattern-homework/blob/main/screen-instruction.md)
-      - при оформлении используйте возможности языка разметки md (коротко об этом можно посмотреть в [инструкции  по MarkDown](https://github.com/netology-code/sys-pattern-homework/blob/main/md-instruction.md))
-   4. После завершения работы над домашним заданием сделайте коммит (`git commit -m "comment"`) и отправьте его на Github (`git push origin`);
-   5. Для проверки домашнего задания преподавателем в личном кабинете прикрепите и отправьте ссылку на решение в виде md-файла в вашем Github.
-   6. Любые вопросы по выполнению заданий спрашивайте в чате учебной группы и/или в разделе “Вопросы по заданию” в личном кабинете.
-   
-Желаем успехов в выполнении домашнего задания!
-   
-### Дополнительные материалы, которые могут быть полезны для выполнения задания
-
-1. [Руководство по оформлению Markdown файлов](https://gist.github.com/Jekins/2bf2d0638163f1294637#Code)
 
 ---
 
 ### Задание 1
 
-`Приведите ответ в свободной форме........`
 
-1. `Заполните здесь этапы выполнения, если требуется ....`
+1. `Создам сервисный аккаутн для задания в YC`
+```
+# сервисный аккаунт под Storage
+yc iam service-account create --name tf-storage
+SA_ID=$(yc iam service-account get --name tf-storage --format json | jq -r .id)
+
+# вывод
+done (1s)
+id: aje8090r68h9tudimo46
+folder_id: b1gse67sen06i8u6ri78
+created_at: "2025-10-27T18:22:52.913867494Z"
+name: tf-storage
+
+There is a new yc version '0.172.0' available. Current version: '0.171.0'.
+See release notes at https://yandex.cloud/ru/docs/cli/release-notes
+You can install it by running the following command in your shell:
+        $ yc components update
+
+# права на каталог
+yc resource-manager folder add-access-binding \
+  --id b1gse67sen06i8u6ri78 \
+  --role storage.admin \
+  --service-account-id "$SA_ID"
+
+  
+
+# вывод
+done (2s)
+effective_deltas:
+  - action: ADD
+    access_binding:
+      role_id: storage.admin
+      subject:
+        id: aje8090r68h9tudimo46
+        type: serviceAccount
+
+# статический ключ
+yc iam access-key create --service-account-id "$SA_ID"
+
+# Экспортирую в окружение, чтобы не светить в GitHub
+
+export YC_STORAGE_ACCESS_KEY="<access_key_id>"
+export YC_STORAGE_SECRET_KEY="<secret>"
+
+```
+
 2. `Заполните здесь этапы выполнения, если требуется ....`
 3. `Заполните здесь этапы выполнения, если требуется ....`
 4. `Заполните здесь этапы выполнения, если требуется ....`
