@@ -52,91 +52,236 @@ export YC_STORAGE_SECRET_KEY="<secret>"
 
 ```
 
-2. `Заполните здесь этапы выполнения, если требуется ....`
-3. `Заполните здесь этапы выполнения, если требуется ....`
-4. `Заполните здесь этапы выполнения, если требуется ....`
-5. `Заполните здесь этапы выполнения, если требуется ....`
-6. 
-
+2. `provider.tf`
 ```
-Поле для вставки кода...
-....
-....
-....
-....
-```
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.98"
+    }
+  }
+}
 
-`При необходимости прикрепитe сюда скриншоты
-![Название скриншота 1](ссылка на скриншот 1)`
+provider "yandex" {
+  service_account_key_file = "key.json"
+  cloud_id                 = "b1gvjpk4qbrvling8qq1"
+  folder_id                = "b1gse67sen06i8u6ri78"
+  zone                     = "ru-central1-a"
 
+  storage_access_key = var.storage_access_key
+  storage_secret_key = var.storage_secret_key
+}
 
----
+variable "storage_access_key" {
+  type      = string
+  sensitive = true
+}
 
-### Задание 2
-
-`Приведите ответ в свободной форме........`
-
-1. `Заполните здесь этапы выполнения, если требуется ....`
-2. `Заполните здесь этапы выполнения, если требуется ....`
-3. `Заполните здесь этапы выполнения, если требуется ....`
-4. `Заполните здесь этапы выполнения, если требуется ....`
-5. `Заполните здесь этапы выполнения, если требуется ....`
-6. 
-
-```
-Поле для вставки кода...
-....
-....
-....
-....
+variable "storage_secret_key" {
+  type      = string
+  sensitive = true
+}
 ```
 
-`При необходимости прикрепитe сюда скриншоты
-![Название скриншота 2](ссылка на скриншот 2)`
-
-
----
-
-### Задание 3
-
-`Приведите ответ в свободной форме........`
-
-1. `Заполните здесь этапы выполнения, если требуется ....`
-2. `Заполните здесь этапы выполнения, если требуется ....`
-3. `Заполните здесь этапы выполнения, если требуется ....`
-4. `Заполните здесь этапы выполнения, если требуется ....`
-5. `Заполните здесь этапы выполнения, если требуется ....`
-6. 
+3. `bucket.tf — бакет и картинка`
 
 ```
-Поле для вставки кода...
-....
-....
-....
-....
+locals {
+  bucket_name = "alexey-${formatdate("YYYYMMDD", timestamp())}"
+}
+
+resource "yandex_storage_bucket" "img" {
+  bucket = local.bucket_name
+  acl    = "public-read"
+
+  anonymous_access_flags {
+    read = true
+    list = true
+  }
+
+  force_destroy = true
+}
+
+resource "yandex_storage_object" "pic" {
+  bucket = yandex_storage_bucket.img.bucket
+  key    = "pic.jpg"
+  source = "${path.module}/files/pic.jpg"
+  acl    = "public-read"
+}
+
+output "public_image_url" {
+  value = "https://storage.yandexcloud.net/${yandex_storage_bucket.img.bucket}/${yandex_storage_object.pic.key}"
+}
+
 ```
 
-`При необходимости прикрепитe сюда скриншоты
-![Название скриншота](ссылка на скриншот)`
-
-### Задание 4
-
-`Приведите ответ в свободной форме........`
-
-1. `Заполните здесь этапы выполнения, если требуется ....`
-2. `Заполните здесь этапы выполнения, если требуется ....`
-3. `Заполните здесь этапы выполнения, если требуется ....`
-4. `Заполните здесь этапы выполнения, если требуется ....`
-5. `Заполните здесь этапы выполнения, если требуется ....`
-6. 
+4. `ig.tf — Instance Group из трёх LAMP-ВМ`
 
 ```
-Поле для вставки кода...
-....
-....
-....
-....
+# шаблон пользовательских данных: простая страница с ссылкой на картинку из бакета
+locals {
+  index_html = <<-EOF
+    <html>
+      <head><title>Netology LAMP</title></head>
+      <body>
+        <h1>Instance Group LAMP</h1>
+        <p>Картинка из Object Storage:</p>
+        <img src="https://storage.yandexcloud.net/${yandex_storage_bucket.img.bucket}/${yandex_storage_object.pic.key}" style="max-width:600px;">
+      </body>
+    </html>
+  EOF
+
+  user_data = <<-EOF
+    #!/bin/bash
+    cat > /var/www/html/index.html <<'EOPAGE'
+    ${replace(local.index_html, "$", "\\$")}
+    EOPAGE
+    systemctl restart apache2 || systemctl restart httpd || true
+  EOF
+}
+
+resource "yandex_compute_instance_group" "lamp_ig" {
+  name               = "lamp-ig"
+  service_account_id = "aje8090r68h9tudimo46"
+
+  instance_template {
+    platform_id = "standard-v1"
+
+    resources {
+      cores  = 2
+      memory = 2
+    }
+
+    boot_disk {
+      mode = "READ_WRITE"
+      initialize_params {
+        image_id = "fd827b91d99psvq5fjit"
+        size     = 10
+        type     = "network-hdd"
+      }
+    }
+
+    network_interface {
+      subnet_ids = [yandex_vpc_subnet.public.id] # из твоей public подсети
+      nat        = true
+    }
+
+    metadata = {
+      user-data = local.user_data
+      ssh-keys  = "ubuntu:${file("~/.ssh/id_ed25519.pub")}"
+    }
+  }
+
+  scale_policy {
+    fixed_scale {
+      size = 3
+    }
+  }
+
+  allocation_policy {
+    zones = ["ru-central1-a"]
+  }
+
+  deploy_policy {
+    max_unavailable = 1
+    max_creating    = 1
+    max_expansion   = 1
+    max_deleting    = 1
+    strategy        = "proactive"
+  }
+
+  # создаём target group автоматически для NLB
+  load_balancer {
+    target_group_name = "lamp-ig-tg"
+  }
+}
+
 ```
 
-`При необходимости прикрепитe сюда скриншоты
-![Название скриншота](ссылка на скриншот)`
+5. `nlb.tf — сетевой балансировщик с health-check`
+
+```
+resource "yandex_lb_network_load_balancer" "nlb" {
+  name = "lamp-nlb"
+
+  listener {
+    name = "http-80"
+    port = 80
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
+
+  attached_target_group {
+    target_group_id = yandex_compute_instance_group.lamp_ig.load_balancer[0].target_group_id
+
+    healthcheck {
+      name = "hc-http"
+      http_options {
+        port = 80
+        path = "/"
+      }
+      interval            = 5
+      timeout             = 2
+      unhealthy_threshold = 2
+      healthy_threshold   = 2
+    }
+  }
+}
+
+output "nlb_public_ip" {
+  value = flatten([
+    for l in yandex_lb_network_load_balancer.nlb.listener : [
+      for a in l.external_address_spec : a.address
+    ]
+  ])[0]
+}
+
+```
+
+6. `Запускаем`
+
+```
+terraform init
+terraform apply
+
+```
+![1](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img1.png)
+
+![2](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img2.png)
+
+![3](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img3.png)
+
+![4](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img4.png)
+
+6. `Из вывода `
+```
+nlb_public_ip = "84.201.149.149" — IP-адрес сетевого балансировщика.
+
+https://storage.yandexcloud.net/alexey-20251027/pic.jpg  — публичная ссылка на картинку из Object Storage.  
+
+```
+6. `Работа с балансировщиком`
+
+```
+Открываю сайт на балансировщике:
+http://84.201.149.149/
+
+```
+![5](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img5.png)
+
+6. `Затем удаляю 1 ВМ и перезагружаю сайт на балансировщике- всё работает`
+
+![5](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img5.png)
+
+6. ` Удаляю всю  дз  - terraform destroy`
+
+```
+Обновляю
+http://84.201.149.149/
+и вижу при обновлении на какие хосты он обращался.
+```
+![6](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img6.png)
+
+![7](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img7.png)
