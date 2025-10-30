@@ -347,7 +347,7 @@ resource "yandex_kms_symmetric_key" "bucket_key" {
 
 ```
 
-1. `Поднимаю структуру `
+4. `Поднимаю структуру `
 
 ```
 terraform fmt
@@ -357,6 +357,16 @@ terraform apply
 ```
 ![8](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img8.png)
 
+![9](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img9.png)
+
+![10](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img10.png)
 
 
-1. `Со`
+5. `Захожу в бакет и проверяю Шифрование на картинки`
+![11](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img11.png)
+
+![12](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img12.png)
+
+![13](https://github.com/Foxbeerxxx/Computing-power-Load-balancers/blob/main/img/img13.png)
+
+5. `Ну и terraform destroy`
